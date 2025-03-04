@@ -1,0 +1,159 @@
+{% extends 'main_app/base.html' %}
+<style>
+    .print-btn-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000; /* Ensures it stays on top */
+    }
+    
+    .print-btn-container a {
+        display: flex;
+        align-items: center;
+        background: #17a2b8; /* Bootstrap "info" color */
+        color: white;
+        text-decoration: none;
+        font-size: 16px;
+        padding: 10px 15px;
+        border-radius: 5px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        transition: 0.3s;
+    }
+    
+    .print-btn-container a:hover {
+        background: #138496;
+    }
+    
+    .print-btn-container a i {
+        margin-right: 5px;
+    }
+    
+    @media print {
+        .print-btn-container {
+            display: none;
+        }
+    } 
+    
+</style>
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-primary">
+                    <!-- Print Attendance Button (Initially Hidden) -->
+                    <div class="print-btn-container" id="print_attendance_section" style="display: none;">
+                        <a id="print_attendance" class="btn btn-info" target="_blank">
+                            <i class="fas fa-print"></i> Print Attendance
+                        </a>
+                    </div>
+
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4><strong>Department: {{ department_name }}</strong></h4>
+
+                        <div class="form-group">
+                            <label>Attendance Date</label>
+                            <select id='attendance_date' class="form-control">
+                                <option value="">-- Select Date --</option>
+                                {% for date in attendance_dates %}
+                                <option value="{{ date.id }}">{{ date.date }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="button" id='fetch_attendance' class="btn btn-primary btn-block">Fetch Attendance</button>
+                        </div>
+
+                        <div id="attendance_records"></div>
+
+                        <!-- Save Button (Initially Hidden) -->
+                        <div class="form-group" id="save_attendance_section" style="display: none;">
+                            <button type="button" id='save_attendance' class="btn btn-success btn-block">Update Attendance</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block custom_js %}
+<script>
+    $(document).ready(function () {
+        $("#fetch_attendance").click(function () {
+            var attendance_date = $("#attendance_date").val();
+            if (!attendance_date) {
+                alert("Please select an attendance date.");
+                return;
+            }
+            
+            $.ajax({
+                url: "{% url 'get_employee_attendance' %}",
+                type: "POST",
+                data: { attendance_date_id: attendance_date },
+                headers: { "X-CSRFToken": "{{ csrf_token }}" }
+            }).done(function (response) {
+                var html = "<h5>Attendance Records</h5><ul>";
+                html += "<form id='attendance_form'>";
+                $.each(response, function (index, record) {
+                    var checked = record.status ? "checked" : "";
+                    html += `<li>
+                                <input type="checkbox" class="attendance_checkbox" data-id="${record.id}" ${checked}>
+                                ${record.name} (${record.status ? "Present" : "Absent"})
+                             </li>`;
+                });
+                html += "</form></ul>";
+                $("#attendance_records").html(html);
+                $("#save_attendance_section").show();
+
+                // ✅ Show Print Attendance Button
+                $("#print_attendance_section").show();
+                $("#print_attendance").attr("href", "{% url 'print_attendance' %}?date=" + attendance_date);
+
+            }).fail(function () {
+                alert("Error fetching attendance records.");
+            });
+        });
+    
+        $("#save_attendance").click(function () {
+            var attendance_date = $("#attendance_date").val();
+            if (!attendance_date) {
+                alert("Please select a date before saving.");
+                return;
+            }
+    
+            var employee_data = [];
+            $(".attendance_checkbox").each(function () {
+                employee_data.push({
+                    id: $(this).data("id"),
+                    status: $(this).is(":checked") ? 1 : 0
+                });
+            });
+    
+            console.log("Sending Data:", employee_data); // Debugging log
+    
+            $.ajax({
+                url: "{% url 'update_attendance' %}",
+                type: "POST",
+                data: {
+                    date: attendance_date,
+                    employee_ids: JSON.stringify(employee_data),  // Ensure proper JSON format
+                    csrfmiddlewaretoken: "{{ csrf_token }}"  // Fix CSRF issue
+                },
+            }).done(function (response) {
+                alert("Attendance updated successfully!");
+            }).fail(function (jqXHR, textStatus, errorThrown) {
+                console.log("Error Details:", jqXHR.responseText); // Debugging log
+                alert("Error updating attendance.");
+            });
+        });
+    });
+    
+</script>
+{% endblock %}

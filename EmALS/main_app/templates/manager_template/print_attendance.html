@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Report - {{ department.name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            padding: 20px;
+        }
+        .letterhead {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .letterhead img {
+            width: 120px;
+        }
+        .attendance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .attendance-table th, .attendance-table td {
+            border: 1px solid black;
+            padding: 10px;
+            text-align: left;
+        }
+        .signature {
+            margin-top: 50px;
+            text-align: center;
+        }
+        .print-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 15px;
+            background: blue;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        @media print {
+            .print-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Letterhead -->
+    <div class="letterhead">
+        <img src="{{ logo_url }}" alt="Organization Logo" style="width: 120px;">
+        <h2>{{ organization_name }}</h2>
+        <p>{{ tagline }}</p>
+        <hr>
+    </div>
+
+    <!-- Attendance Info -->
+    <h3>Department: {{ department.name }}</h3>
+    <h4>Supervisor: {{ manager }}</h4>
+    <h4>Date: {{ date }}</h4>
+
+    <!-- Attendance Table -->
+    <table class="attendance-table">
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>Employee Name</th>
+                <th>Attendance Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in attendance_records %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>
+                    {% if record.employee.admin.first_name and record.employee.admin.last_name %}
+                        {{ record.employee.admin.first_name }} {{ record.employee.admin.last_name }}
+                    {% else %}
+                        Unknown Employee
+                    {% endif %}
+                </td>
+                <td>{{ record.get_status_display }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        
+    </table>
+
+    <!-- Signature Section -->
+    <div class="signature">
+        <p>Sign:..........................................</p>
+        <p>{{ manager }}</p>
+        <p>{{ department.name }} Supervisor</p>
+    </div>
+
+    <!-- Print Button -->
+    <button class="print-btn" onclick="window.print()">
+        <i class="fas fa-print"></i> Print Attendance
+    </button>
+
+</body>
+</html>

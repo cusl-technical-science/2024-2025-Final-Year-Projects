@@ -1,0 +1,104 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- general form elements -->
+                    <form method="POST">
+                        {% csrf_token %}
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+
+
+                    <!-- /.card-header -->
+                    <!-- form start -->
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Department:</label>
+                            <p><strong>{{ department.name }}</strong></p> <!-- Show manager's department -->
+                            <input type="hidden" name="department" value="{{ department.id }}">
+                        </div>
+                    </div>
+                    
+                    <!-- /.card-body -->
+
+                    <div class="card-footer">
+                        <button type="button" id='fetch_employee' class="btn btn-primary btn-block">Fetch
+                            Employees</button>
+                        <div class="form-group" id="employee_data">
+
+                        </div>
+                    </div>
+                </form>
+                </div>
+                <!-- /.card -->
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+
+{% block custom_js %}
+<script>
+    $(document).ready(function () {
+        $("#fetch_employee").click(function () {
+            var department = "{{ department.id }}";  // Get department ID from template
+            console.log("Fetching employees for department ID:", department); // Debugging
+
+            $("#employee_data").html(""); // Clear previous data
+
+            if (!department) {
+                alert("Department not found.");
+                return false;
+            }
+
+            $.ajax({
+                url: "{% url 'get_employees' %}",
+                type: "POST",
+                data: {
+                    department: department,
+                    csrfmiddlewaretoken: "{{ csrf_token }}"  // Ensure CSRF token is included
+                },
+                success: function (response) {
+                    console.log("Server response:", response); // Debugging
+
+                    if (response.error) {  // ✅ If the server returns an error
+                        alert("Error: " + response.error);
+                        return;
+                    }
+
+                    if (response.length < 1) {
+                        alert("No employees found in this department.");
+                        return;
+                    }
+
+                    var div_data = "<hr/><div class='form-group'><label>Employee List</label><select class='employee_list form-control' name='employee_list'>";
+
+                    for (var key in response) {
+                        div_data += "<option value='" + response[key]['id'] + "'>" + response[key]['name'] + "</option>";
+                    }
+
+                    div_data += "</select></div>";
+                    div_data += "<div class='form-group row'><div class='col-md-6'><label>Base Salary</label> <input class='form-control' name='base' placeholder='Base Salary' required type='number' /></div><div class='col-md-6'><label>Allowance</label> <input class='form-control' placeholder='Allowance' name='ctc' required type='number' /></div></div>";
+                    div_data += "<div class='form-group'><button id='save_salary' class='btn btn-success' type='submit'>Save Salary</button></div>";
+
+                    $("#employee_data").html(div_data);
+                },
+                error: function (xhr, status, error) {
+                    console.log("AJAX Error:", error);
+                    alert("Error fetching employees. Please try again.");
+                }
+            });
+        });
+    });
+</script>
+
+{% endblock custom_js %}

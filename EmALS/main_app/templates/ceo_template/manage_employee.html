@@ -1,0 +1,71 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="card-title">{{page_title}}</h3>
+                        <a href="{% url 'add_employee' %}" class="btn btn-success">
+                            <i class="fa fa-user-plus"></i> Add Employee
+                        </a>
+                    </div>
+                    <!-- /.card-header -->
+                    <div class="card-body">
+                        <table id="example2" class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Full Name</th>
+                                    <th>Email</th>
+                                    <th>Gender</th>
+                                    <th>Department</th>
+                                    <th>Photo</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for employee in employees %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ employee.last_name }}, {{ employee.first_name }}</td>
+                                        <td>{{ employee.email }}</td>
+                                        <td>{{ employee.gender }}</td>
+                                        <td>
+                                            {% if employee.employee and employee.employee.department %}
+                                                {{ employee.employee.department.name }}
+                                            {% else %}
+                                                No Department
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if employee.profile_pic == "" %}
+                                                No Image
+                                            {% else %}
+                                                <img class="img img-fluid mb-2" height="50" width="50" src="{{ employee.profile_pic }}" alt="">
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if employee.employee %}
+                                                <a href="{% url 'edit_employee' employee.employee.id %}" class="btn btn-primary btn-sm">Edit</a>
+                                                <a href="{% url 'delete_employee' employee.employee.id %}" class="btn btn-danger btn-sm"
+                                                    onclick="return confirm('Are you sure about this?')">Delete</a>
+                                            {% else %}
+                                                <span class="text-danger">Invalid Employee</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

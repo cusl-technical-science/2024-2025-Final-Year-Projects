@@ -1,0 +1,140 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="attendanceForm">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label>Department</label>
+                                <select name="department" class="form-control" id="department">
+                                    <option value="">----</option>
+                                    {% for department in departments %}
+                                    <option value="{{ department.id }}">{{ department.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="button" id="fetch_attendance" class="btn btn-primary btn-block">
+                                Fetch Attendance
+                            </button>
+                        </form>
+                        <div class="form-group" id="attendance_block" style="display: none;">
+                            <label>Attendance Date</label>
+                            <select name="attendance_date" id="attendance_date" class="form-control"></select>
+                        </div>
+                        <button type="button" id="fetch_employee" class="btn btn-primary btn-block" style="display: none;">
+                            Fetch Employees
+                        </button>
+                        <div id="employee_data" class="card-footer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+    $(document).ready(function () {
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        $("#fetch_attendance").click(function(){
+            var department = $("#department").val();
+            if (department.length < 1){
+                alert("Kindly Choose a Department");
+                return false;
+            }
+            
+            $.ajax({
+                url: "{% url 'get_attendance' %}",
+                type: 'POST',
+                headers: { "X-CSRFToken": csrftoken }, // CSRF Token Added
+                data: { department: department }
+            }).done(function(response){
+                if (response.length > 0){
+                    var html = "";
+                    response.forEach(function(item) {
+                        html += `<option value="${item.id}">${item.attendance_date}</option>`;
+                    });
+                    $("#attendance_date").html(html);
+                    $("#attendance_block").show();
+                    $("#fetch_employee").show();
+                } else {
+                    alert("No Attendance Data Found for the Selected Department");
+                    $("#attendance_block").hide();
+                    $("#fetch_employee").hide();
+                    $("#employee_data").html("");
+                }
+            }).fail(function(response){
+                alert("Error while fetching attendance data.");
+            });
+        });
+
+        // In the CEO/Admin template
+        $("#fetch_employee").click(function () {
+            var attendance_date = $("#attendance_date").val();
+            var department = $("#department").val();
+
+            if (attendance_date.length == 0) {
+                alert("Please Choose an Attendance Date");
+                return false;
+            }
+
+            $.ajax({
+                url: "{% url 'get_admin_attendance' %}",
+                type: 'POST',
+                headers: { "X-CSRFToken": csrftoken },
+                data: {
+                    attendance_date_id: attendance_date,
+                    department: department
+                }
+            }).done(function (response) {
+                if (!response || response.length < 1) {
+                    alert("No attendance records found.");
+                    $("#employee_data").html("");
+                    return;
+                }
+
+                var div_data = "<hr/><div class='form-group'> <label>Employee Attendance</label><div class='row'>";
+                response.forEach(function(record) {
+                    // Check if status is boolean or string and handle accordingly
+                    const isPresent = typeof record.status === 'string' 
+                        ? record.status.toLowerCase() === 'true' 
+                        : record.status;
+                    
+                    div_data += `<div class='col-lg-3 ${isPresent ? "attendance_div_green" : "attendance_div_red"}'>
+                                <b>${record.name}</b><br/>${isPresent ? "Present" : "Absent"}</div>`;
+                });
+                div_data += "</div></div>";
+                $("#employee_data").html(div_data);
+            }).fail(function (xhr, status, error) {
+                alert("Error in fetching employee attendance: " + error);
+                $("#employee_data").html("");
+            });
+        });
+    });
+</script>
+{% endblock custom_js %}

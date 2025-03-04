@@ -1,0 +1,121 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- general form elements -->
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+
+                    <div class="card-body">
+                        <!-- Show Manager's Department -->
+                        <h4><strong>Department:</strong> {{ request.user.manager.department.name }}</h4>
+
+                        <!-- Date Picker -->
+                        <div class="form-group">
+                            <label>Select Attendance Date</label>
+                            <input type="date" class="form-control" id="attendance_date" min="{{ today|date:'Y-m-d' }}">
+                        </div>
+
+                    </div>
+
+                    <div class="card-footer">
+                        <button type="button" id="fetch_employee" class="btn btn-primary btn-block">Fetch Employees</button>
+                        <div class="form-group" id="employee_data"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+    $(document).ready(function () {
+        $("#fetch_employee").click(function () {
+            var attendance_date = $("#attendance_date").val();
+            $("#employee_data").html("");
+
+            if (!attendance_date) {
+                alert("Please select a date");
+                return;
+            }
+
+            $.ajax({
+                url: "{% url 'get_employees' %}",
+                type: 'POST',
+                data: { date: attendance_date },
+                headers: { "X-CSRFToken": "{{ csrf_token }}" },
+            }).done(function (response) {
+                if (response.error) {
+                    alert(response.error);
+                    return;
+                }
+
+                if (response.length < 1) {
+                    alert("No employees found");
+                } else {
+                    var div_data = "<hr/><div class='row'>";
+                    response.forEach(emp => {
+                        div_data += `
+                            <div class='col-lg-3'>
+                                <div class='form-check custom-control custom-checkbox'>
+                                    <input type='checkbox' class='custom-control-input' checked name='employee_data[]' value='${emp.id}' id='checkbox${emp.id}' />
+                                    <label for='checkbox${emp.id}' class='custom-control-label'>${emp.name}</label>
+                                </div>
+                            </div>`;
+                    });
+                    div_data += "</div>";
+                    div_data += "<div class='form-group'><button id='save_attendance' class='btn btn-success'>Save Attendance</button></div>";
+                    $("#employee_data").html(div_data);
+                }
+            }).fail(function () {
+                alert("Error fetching employees");
+            });
+        });
+
+        // Prevent past dates in date picker
+        var today = new Date().toISOString().split('T')[0];
+        $("#attendance_date").attr("min", today);
+    });
+    
+    $(document).on('click', '#save_attendance', function () {
+        $(this).attr("disabled", "disabled").text("Saving Attendance...");
+    
+        var employee_data = $("input[name='employee_data[]']").map(function () {
+            return { 'id': $(this).val(), 'status': $(this).is(":checked") ? 1 : 0 };
+        }).get();
+    
+        var attendance_date = $('#attendance_date').val();
+        if (!attendance_date) {
+            alert("Select a date");
+            return;
+        }
+    
+        $.ajax({
+            url: "{% url 'save_attendance' %}",
+            type: 'POST',
+            headers: { "X-CSRFToken": "{{ csrf_token }}" },  // Secure CSRF handling
+            data: {
+                date: attendance_date,
+                employee_ids: JSON.stringify(employee_data),
+                department: "{{ request.user.manager.department.id }}"
+            },
+        }).done(function (response) {
+            alert(response.message || "Saved Successfully");
+            location.reload();
+        }).fail(function (xhr) {
+            alert(xhr.responseJSON ? xhr.responseJSON.error : "Error in saving attendance");
+        });
+    });
+    
+</script>
+{% endblock custom_js %}

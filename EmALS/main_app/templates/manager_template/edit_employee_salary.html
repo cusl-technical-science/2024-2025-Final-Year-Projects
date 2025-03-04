@@ -1,0 +1,129 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- general form elements -->
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label><strong>Department:</strong></label>
+                        {% if department %}
+                            <p><strong>{{ department.name }}</strong></p>
+                            <input type="hidden" name="department" id="id_department" value="{{ department.id }}">
+                        {% else %}
+                            <p><strong>No department assigned.</strong></p>
+                            <input type="hidden" name="department" id="id_department" value="">
+                        {% endif %}
+                    </div>
+                
+                    <div class="form-group">
+                        <label>Select Employee:</label>
+                        <select name="employee" class="form-control" id="id_employee">
+                            <option value="">Select Employee</option>
+                            {% if employees %}
+                                {% for employee in employees %}
+                                    <option value="{{ employee.id }}">{{ employee.admin.last_name }} {{ employee.admin.first_name }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="">No employees found</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                
+                    <div class="form-group">
+                        <label>Base Salary</label>
+                        <input type="number" name="base" class="form-control" id="id_base" value="{{ form.base.value|default:'' }}">
+                    </div>
+                
+                    <div class="form-group">
+                        <label>Allowance</label>
+                        <input type="number" name="ctc" class="form-control" id="id_ctc" value="{{ form.ctc.value|default:'' }}">
+                    </div>
+                
+                    <button type="submit" class="btn btn-primary" id="update_salary">Update Salary</button>
+                </form>
+                
+                <!-- Loading indicator -->
+                <div id="loading" style="display: none;">
+                    <p>Loading salary details...</p>
+                </div>
+                <!-- /.card -->
+
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block custom_js %}
+<script>
+    $(document).ready(function () {
+        $("#id_employee").change(function () {
+            fetch_employee_salary();
+        });
+
+        function fetch_employee_salary() {
+            var employee = $("#id_employee").val();
+            var department = "{{ department.id|default:'' }}";  // Use default if department is None
+
+            console.log("Fetching salary for Employee ID:", employee, "in Department:", department); // Debugging
+
+            if (!employee || !department) {
+                console.log("Invalid employee or department ID");
+                alert("Please select a valid employee and department.");
+                return;
+            }
+
+            // Show loading indicator
+            $("#loading").show();
+
+            $.ajax({
+                url: "{% url 'fetch_employee_salary' %}",
+                type: "POST",
+                data: {
+                    employee: employee,
+                    department: department,
+                    csrfmiddlewaretoken: "{{ csrf_token }}"
+                },
+                success: function (response) {
+                    console.log("Server Response:", response); // Debugging AJAX response
+
+                    if (response.error) {
+                        alert("Error: " + response.error);
+                        return;
+                    }
+
+                    // Debug: Check if fields exist before updating them
+                    if ($("#id_base").length === 0) {
+                        console.error("Error: Base Salary field not found in DOM.");
+                        return;
+                    }
+                    if ($("#id_ctc").length === 0) {
+                        console.error("Error: CTC field not found in DOM.");
+                        return;
+                    }
+
+                    console.log("Updating fields: Base Salary =", response.base, "CTC =", response.ctc);  // Log values
+
+                    // Update salary fields
+                    $("#id_base").val(response.base);
+                    $("#id_ctc").val(response.ctc);
+                },
+                error: function (xhr, status, error) {
+                    console.log("AJAX Error:", error);
+                    alert("Error fetching salary details. Please try again.");
+                },
+                complete: function () {
+                    // Hide loading indicator
+                    $("#loading").hide();
+                }
+            });
+        }
+    });
+</script>
+{% endblock custom_js %}
